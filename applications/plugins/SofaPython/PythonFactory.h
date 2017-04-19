@@ -1,23 +1,20 @@
 /******************************************************************************
 *       SOFA, Simulation Open-Framework Architecture, development version     *
-*                (c) 2006-2016 INRIA, USTL, UJF, CNRS, MGH                    *
+*                (c) 2006-2017 INRIA, USTL, UJF, CNRS, MGH                    *
 *                                                                             *
-* This library is free software; you can redistribute it and/or modify it     *
+* This program is free software; you can redistribute it and/or modify it     *
 * under the terms of the GNU Lesser General Public License as published by    *
 * the Free Software Foundation; either version 2.1 of the License, or (at     *
 * your option) any later version.                                             *
 *                                                                             *
-* This library is distributed in the hope that it will be useful, but WITHOUT *
+* This program is distributed in the hope that it will be useful, but WITHOUT *
 * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or       *
 * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License *
 * for more details.                                                           *
 *                                                                             *
 * You should have received a copy of the GNU Lesser General Public License    *
-* along with this library; if not, write to the Free Software Foundation,     *
-* Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA.          *
+* along with this program. If not, see <http://www.gnu.org/licenses/>.        *
 *******************************************************************************
-*                               SOFA :: Plugins                               *
-*                                                                             *
 * Authors: The SOFA Team and external contributors (see Authors.txt)          *
 *                                                                             *
 * Contact information: contact@sofa-framework.org                             *
@@ -40,6 +37,9 @@
 #include <SofaPython/Binding_BaseMapping.h>
 #include <SofaPython/Binding_DataEngine.h>
 #include <SofaPython/Binding_BaseContext.h>
+#include <SofaPython/Binding_BaseTopologyObject.h>
+#include <SofaPython/Binding_PointSetTopologyModifier.h>
+#include <SofaPython/Binding_TriangleSetTopologyModifier.h>
 #include <SofaPython/Binding_Data.h>
 
 #include <type_traits>
@@ -97,7 +97,7 @@ protected:
     /// a list of Abstract classes that can be cheaply deduced from Base* (by static_cast)
     /// this limits checking the right cast on a limited number of types
     /// Note this list is built from actual needs, but can be easily extended to any types that Base* can be statically casted from.
-    enum{Base=0,BaseObject,BaseLoader,Topology,BaseMeshTopology,VisualModel,BaseState,BaseMechanicalState,BaseMapping,DataEngine,BaseContext,NB_LISTS};
+    enum{Base=0,BaseObject,BaseLoader,Topology,BaseMeshTopology,BaseTopologyObject,VisualModel,BaseState,BaseMechanicalState,BaseMapping,DataEngine,BaseContext,NB_LISTS};
     typedef std::list< BasePythonBoundType* > PythonBoundTypes;
     /// a list of types for each sub-classes (prefiltering types not to have to check casting with any of them)
     static PythonBoundTypes s_boundComponents[NB_LISTS];
@@ -140,6 +140,9 @@ public:
                     return s_boundComponents[BaseMeshTopology].push_back( t );
                 return s_boundComponents[Topology].push_back( t );
             }
+
+            if( std::is_base_of<sofa::core::topology::BaseTopologyObject, T>::value )
+                return s_boundComponents[BaseTopologyObject].push_back( t );
 
             if( std::is_base_of<sofa::core::visual::VisualModel, T>::value )
                 return s_boundComponents[VisualModel].push_back( t );
@@ -186,6 +189,8 @@ public:
                 return toPython( obj->toTopology() );
             }
 
+            if( obj->toBaseTopologyObject() ) return toPython( obj->toBaseTopologyObject() );
+
             if( obj->toVisualModel()) return toPython( obj->toVisualModel() );
 
             if( obj->toBaseState() )
@@ -217,6 +222,8 @@ public:
             if( obj->toBaseMeshTopology() ) return toPython( obj->toBaseMeshTopology() );
             return toPython( obj->toTopology() );
         }
+
+        if( obj->toBaseTopologyObject() ) return toPython( obj->toBaseTopologyObject() );
 
         if( obj->toVisualModel()) return toPython( obj->toVisualModel() );
 
@@ -257,6 +264,12 @@ public:
     static PyObject* toPython(sofa::core::topology::BaseMeshTopology* obj)
     {
         return toPython( s_boundComponents[BaseMeshTopology], obj, &SP_SOFAPYTYPEOBJECT(BaseMeshTopology) );
+    }
+
+    /// to convert a BaseTopologyObject-inherited object to its corresponding pyObject
+    static PyObject* toPython(sofa::core::topology::BaseTopologyObject* obj)
+    {
+        return toPython( s_boundComponents[BaseTopologyObject], obj, &SP_SOFAPYTYPEOBJECT(BaseTopologyObject) );
     }
 
     /// to convert a VisualModel-inherited object to its corresponding pyObject

@@ -1,23 +1,20 @@
 /******************************************************************************
 *       SOFA, Simulation Open-Framework Architecture, development version     *
-*                (c) 2006-2016 INRIA, USTL, UJF, CNRS, MGH                    *
+*                (c) 2006-2017 INRIA, USTL, UJF, CNRS, MGH                    *
 *                                                                             *
-* This library is free software; you can redistribute it and/or modify it     *
+* This program is free software; you can redistribute it and/or modify it     *
 * under the terms of the GNU Lesser General Public License as published by    *
 * the Free Software Foundation; either version 2.1 of the License, or (at     *
 * your option) any later version.                                             *
 *                                                                             *
-* This library is distributed in the hope that it will be useful, but WITHOUT *
+* This program is distributed in the hope that it will be useful, but WITHOUT *
 * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or       *
 * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License *
 * for more details.                                                           *
 *                                                                             *
 * You should have received a copy of the GNU Lesser General Public License    *
-* along with this library; if not, write to the Free Software Foundation,     *
-* Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA.          *
+* along with this program. If not, see <http://www.gnu.org/licenses/>.        *
 *******************************************************************************
-*                               SOFA :: Modules                               *
-*                                                                             *
 * Authors: The SOFA Team and external contributors (see Authors.txt)          *
 *                                                                             *
 * Contact information: contact@sofa-framework.org                             *
@@ -58,6 +55,19 @@ inline double sign(T &toto)
     return 1.0;
 }
 
+inline defaulttype::Quat qDiff(defaulttype::Quat a, const defaulttype::Quat& b)
+{
+    if (a[0]*b[0]+a[1]*b[1]+a[2]*b[2]+a[3]*b[3]<0)
+    {
+        a[0] = -a[0];
+        a[1] = -a[1];
+        a[2] = -a[2];
+        a[3] = -a[3];
+    }
+    defaulttype::Quat q = b.inverse() * a;
+    return q;
+}
+
 template<class DataTypes>
 BilateralInteractionConstraint<DataTypes>::BilateralInteractionConstraint(MechanicalState* object1, MechanicalState* object2)
     : Inherit(object1, object2)
@@ -74,6 +84,7 @@ BilateralInteractionConstraint<DataTypes>::BilateralInteractionConstraint(Mechan
     //TODO(dmarchal): what do TEST means in the following ? should it be renamed (EXPERIMENTAL FEATURE) and when those Experimental feature will become official feature ?
     , merge(initData(&merge,false, "merge", "TEST: merge the bilateral constraints in a unique constraint"))
     , derivative(initData(&derivative,false, "derivative", "TEST: derivative"))
+    , keepOrientDiff(initData(&keepOrientDiff,false, "keepOrientationDifference", "keep the initial difference in orientation (only for rigids)"))
 
     , activated(true), iteration(0)
 
@@ -96,6 +107,7 @@ BilateralInteractionConstraint<DataTypes>::BilateralInteractionConstraint(Mechan
 
     , merge(initData(&merge,false, "merge", "TEST: merge the bilateral constraints in a unique constraint"))
     , derivative(initData(&derivative,false, "derivative", "TEST: derivative"))
+    , keepOrientDiff(initData(&keepOrientDiff,false, "keepOrientationDifference", "keep the initial difference in orientation (only for rigids)"))
     , activated(true), iteration(0)
 {
     this->f_listening.setValue(true);
@@ -112,6 +124,7 @@ BilateralInteractionConstraint<DataTypes>::BilateralInteractionConstraint()
 
     , merge(initData(&merge,false, "merge", "TEST: merge the bilateral constraints in a unique constraint"))
     , derivative(initData(&derivative,false, "derivative", "TEST: derivative"))
+    , keepOrientDiff(initData(&keepOrientDiff,false, "keepOrientationDifference", "keep the initial difference in orientation (only for rigids)"))
     , activated(true), iteration(0)
 {
     this->f_listening.setValue(true);

@@ -1,6 +1,6 @@
 /******************************************************************************
 *       SOFA, Simulation Open-Framework Architecture, development version     *
-*                (c) 2006-2016 INRIA, USTL, UJF, CNRS, MGH                    *
+*                (c) 2006-2017 INRIA, USTL, UJF, CNRS, MGH                    *
 *                                                                             *
 * This program is free software; you can redistribute it and/or modify it     *
 * under the terms of the GNU General Public License as published by the Free  *
@@ -13,11 +13,8 @@
 * more details.                                                               *
 *                                                                             *
 * You should have received a copy of the GNU General Public License along     *
-* with this program; if not, write to the Free Software Foundation, Inc., 51  *
-* Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA.                   *
+* with this program. If not, see <http://www.gnu.org/licenses/>.              *
 *******************************************************************************
-*                            SOFA :: Applications                             *
-*                                                                             *
 * Authors: The SOFA Team and external contributors (see Authors.txt)          *
 *                                                                             *
 * Contact information: contact@sofa-framework.org                             *
@@ -93,8 +90,8 @@
 #include <sstream>
 #include <ctime>
 
-#include <sofa/core/objectmodel/HeartBeatEvent.h>
-using sofa::core::objectmodel::HeartBeatEvent ;
+#include <sofa/core/objectmodel/IdleEvent.h>
+using sofa::core::objectmodel::IdleEvent ;
 
 #include <sofa/helper/system/FileMonitor.h>
 using sofa::helper::system::FileMonitor ;
@@ -127,6 +124,16 @@ public:
     QSOFAApplication(int &argc, char ** argv)
         : QApplication(argc,argv)
     { }
+
+#if QT_VERSION < 0x050000
+    static inline QString translate(const char * context, const char * key, const char * disambiguation,
+                            QCoreApplication::Encoding encoding = QCoreApplication::UnicodeUTF8, int n = -1)
+        { return QApplication::translate(context, key, disambiguation, encoding, n); }
+#else
+    static inline QString translate(const char * context, const char * key,
+                            const char * disambiguation = Q_NULLPTR, int n = -1)
+        { return QApplication::translate(context, key, disambiguation, n); }
+#endif
 
 protected:
     bool event(QEvent *event)
@@ -313,9 +320,9 @@ RealGUI::RealGUI ( const char* viewername, const std::vector<std::string>& optio
 
     /// We activate this timer only if the interactive mode is enabled (ie livecoding+mouse mouve event).
     if(m_enableInteraction){
-        timerHeartBeat = new QTimer(this);
-        connect ( timerHeartBeat, SIGNAL ( timeout() ), this, SLOT ( emitHeartBeat() ) );
-        timerHeartBeat->start(50) ;
+        timerIdle = new QTimer(this);
+        connect ( timerIdle, SIGNAL ( timeout() ), this, SLOT ( emitIdle() ) );
+        timerIdle->start(50) ;
     }
 
     this->setDockOptions(QMainWindow::AnimatedDocks | QMainWindow::AllowTabbedDocks);
@@ -426,10 +433,10 @@ RealGUI::RealGUI ( const char* viewername, const std::vector<std::string>& optio
     gridLayout->removeWidget(screenshotButton);
     gridLayout->addWidget(screenshotButton, 3, 1, 1,1);
 
-    interactionButton->setText(QApplication::translate("GUI", "&Interaction", 0, QApplication::UnicodeUTF8));
-    interactionButton->setShortcut(QApplication::translate("GUI", "Alt+i", 0, QApplication::UnicodeUTF8));
+    interactionButton->setText(QSOFAApplication::translate("GUI", "&Interaction", 0));
+    interactionButton->setShortcut(QSOFAApplication::translate("GUI", "Alt+i", 0));
 #ifndef QT_NO_TOOLTIP
-    interactionButton->setProperty("toolTip", QVariant(QApplication::translate("GUI", "Start interaction mode", 0, QApplication::UnicodeUTF8)));
+    interactionButton->setProperty("toolTip", QVariant(QSOFAApplication::translate("GUI", "Start interaction mode", 0)));
 #endif
 
     connect ( interactionButton, SIGNAL ( toggled ( bool ) ), this , SLOT ( interactionGUI ( bool ) ) );
@@ -771,17 +778,20 @@ void RealGUI::fileOpen ( std::string filename, bool temporaryFile )
 
 //------------------------------------
 
-void RealGUI::emitHeartBeat()
+void RealGUI::emitIdle()
 {
     // Update all the registered monitor.
     FileMonitor::updates(0) ;
 
-    HeartBeatEvent hb;
+    IdleEvent hb;
     Node* groot = mViewer->getScene();
     if (groot)
     {
         groot->propagateEvent(core::ExecParams::defaultInstance(), &hb);
     }
+
+    if(isEmbeddedViewer())
+        getQtViewer()->getQWidget()->update();;
 }
 
 //------------------------------------
@@ -1677,6 +1687,7 @@ void RealGUI::initViewer(BaseViewer* _viewer)
     connect ( screenshotButton, SIGNAL ( clicked() ), this, SLOT ( screenshot() ) );
     connect ( sizeW, SIGNAL ( valueChanged ( int ) ), this, SLOT ( setSizeW ( int ) ) );
     connect ( sizeH, SIGNAL ( valueChanged ( int ) ), this, SLOT ( setSizeH ( int ) ) );
+
 }
 
 //------------------------------------
@@ -2022,7 +2033,7 @@ void RealGUI::interactionGUI ( bool value )
 
     if(value)
     {
-        interactionButton->setText(QApplication::translate("GUI", "ESC to qu&it", 0, QApplication::UnicodeUTF8));
+        interactionButton->setText(QSOFAApplication::translate("GUI", "ESC to qu&it", 0));
         this->grabMouse();
         this->grabKeyboard();
         this->setMouseTracking(true);
@@ -2033,7 +2044,7 @@ void RealGUI::interactionGUI ( bool value )
     }
     else
     {
-        interactionButton->setText(QApplication::translate("GUI", "&Interaction", 0, QApplication::UnicodeUTF8));
+        interactionButton->setText(QSOFAApplication::translate("GUI", "&Interaction", 0));
         this->releaseKeyboard();
         this->releaseMouse();
         this->setMouseTracking(false);
@@ -2177,14 +2188,20 @@ void RealGUI::screenshot()
 
     if ( filename != "" )
     {
-        std::ostringstream ofilename;
-        const char* begin = filename.toStdString().c_str();
-        const char* end = strrchr ( begin,'_' );
-        if ( !end )
-            end = begin + filename.length();
-        ofilename << std::string ( begin, end );
-        ofilename << "_";
-        getViewer()->setPrefix ( ofilename.str() );
+        QString prefix;
+        int end = filename.lastIndexOf('_');
+        if (end > -1) {
+            prefix = filename.mid(
+                0,
+                end+1
+            );
+        } else {
+            prefix = QString::fromStdString(
+              sofa::helper::system::SetDirectory::GetFileNameWithoutExtension(filename.toStdString().c_str()) + "_");
+        }
+
+        if (!prefix.isEmpty())
+            getViewer()->setPrefix ( prefix.toStdString(), false );
 
         getViewer()->screenshot ( filename.toStdString() );
     }

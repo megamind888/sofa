@@ -1,23 +1,20 @@
 /******************************************************************************
 *       SOFA, Simulation Open-Framework Architecture, development version     *
-*                (c) 2006-2016 INRIA, USTL, UJF, CNRS, MGH                    *
+*                (c) 2006-2017 INRIA, USTL, UJF, CNRS, MGH                    *
 *                                                                             *
-* This library is free software; you can redistribute it and/or modify it     *
+* This program is free software; you can redistribute it and/or modify it     *
 * under the terms of the GNU Lesser General Public License as published by    *
 * the Free Software Foundation; either version 2.1 of the License, or (at     *
 * your option) any later version.                                             *
 *                                                                             *
-* This library is distributed in the hope that it will be useful, but WITHOUT *
+* This program is distributed in the hope that it will be useful, but WITHOUT *
 * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or       *
 * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License *
 * for more details.                                                           *
 *                                                                             *
 * You should have received a copy of the GNU Lesser General Public License    *
-* along with this library; if not, write to the Free Software Foundation,     *
-* Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA.          *
+* along with this program. If not, see <http://www.gnu.org/licenses/>.        *
 *******************************************************************************
-*                               SOFA :: Plugins                               *
-*                                                                             *
 * Authors: The SOFA Team and external contributors (see Authors.txt)          *
 *                                                                             *
 * Contact information: contact@sofa-framework.org                             *
@@ -33,7 +30,7 @@
 
 #include <sofa/helper/Utils.h>
 
-#if __linux__
+#if defined(__linux__)
 #  include <dlfcn.h>            // for dlopen(), see workaround in Init()
 #endif
 
@@ -42,7 +39,6 @@ using namespace sofa::component::controller;
 
 using sofa::helper::system::FileSystem;
 using sofa::helper::Utils;
-
 
 namespace sofa
 {
@@ -68,10 +64,10 @@ void PythonEnvironment::Init()
     SP_MESSAGE_INFO("Python version: " + pythonVersion)
 #endif
 
+#if defined(__linux__)
     // WARNING: workaround to be able to import python libraries on linux (like
     // numpy), at least on Ubuntu (see http://bugs.python.org/issue4434). It is
     // not fixing the real problem, but at least it is working for now.
-#if __linux__
     std::string pythonLibraryName = "libpython" + std::string(pythonVersion,0,3) + ".so";
     dlopen( pythonLibraryName.c_str(), RTLD_LAZY|RTLD_GLOBAL );
 #endif
@@ -80,8 +76,10 @@ void PythonEnvironment::Init()
     if( putenv( (char*)"PYTHONUNBUFFERED=1" ) )
         SP_MESSAGE_WARNING("failed to set environment variable PYTHONUNBUFFERED")
 
-    // Initialize the Python Interpreter.
-    Py_Initialize();
+    if ( !Py_IsInitialized() )
+    {
+        Py_Initialize();
+    }
 
     // Append sofa modules to the embedded python environment.
     bindSofaPythonModule();
@@ -102,6 +100,13 @@ try:\n\
     numpy.finfo(float)\n\
 except:\n\
     pass");
+
+
+    // If the script directory is not available (e.g. if the interpreter is invoked interactively
+    // or if the script is read from standard input), path[0] is the empty string,
+    // which directs Python to search modules in the current directory first.
+    PyRun_SimpleString(std::string("sys.path.insert(0,\"\")").c_str());
+
 
     // Add the paths to the plugins' python modules to sys.path.  Those paths
     // are read from all the files in 'etc/sofa/python.d'
@@ -132,7 +137,14 @@ except:\n\
         }
     }
 
+    // python livecoding related
     PyRun_SimpleString("from SofaPython.livecoding import onReimpAFile");
+
+    // general sofa-python stuff
+    PyRun_SimpleString("import SofaPython");
+
+    // python modules are automatically reloaded at each scene loading
+    setAutomaticModuleReload( true );
 }
 
 void PythonEnvironment::Release()
@@ -145,7 +157,9 @@ void PythonEnvironment::addPythonModulePath(const std::string& path)
 {
     static std::set<std::string> addedPath;
     if (addedPath.find(path)==addedPath.end()) {
-        PyRun_SimpleString(std::string("sys.path.insert(0,\""+path+"\")").c_str());
+        // note not to insert at first 0 place
+        // an empty string must be at first so modules can be found in the current directory first.
+        PyRun_SimpleString(std::string("sys.path.insert(1,\""+path+"\")").c_str());
         SP_MESSAGE_INFO("Added '" + path + "' to sys.path");
         addedPath.insert(path);
     }
@@ -267,10 +281,7 @@ bool PythonEnvironment::runFile( const char *filename, const std::vector<std::st
     std::string bareFilename = sofa::helper::system::SetDirectory::GetFileNameWithoutExtension(filename);
 //    SP_MESSAGE_INFO( "script directory \""<<dir<<"\"" )
 
-    // current path is always added to environment (if it is not empty)
-    if( !dir.empty() ) addPythonModulePath(dir);
-
-//    SP_MESSAGE_INFO( commandString.c_str() )
+    //    SP_MESSAGE_INFO( commandString.c_str() )
 
     if(!arguments.empty())
     {
@@ -295,8 +306,6 @@ bool PythonEnvironment::runFile( const char *filename, const std::vector<std::st
     }
 
     //  Py_BEGIN_ALLOW_THREADS
-
-    PyRun_SimpleString("import sys");
 
     // Load the scene script
     char* pythonFilename = strdup(filename);
@@ -374,6 +383,29 @@ bool PythonEnvironment::initGraph(PyObject *script, sofa::simulation::tree::GNod
     }
 }
 */
+
+void PythonEnvironment::SceneLoaderListerner::rightBeforeLoadingScene()
+{
+    // unload python modules to force importing their eventual modifications
+    PyRun_SimpleString("SofaPython.unloadModules()");
+}
+
+
+void PythonEnvironment::setAutomaticModuleReload( bool b )
+{
+    if( b )
+        SceneLoader::addListener( SceneLoaderListerner::getInstance() );
+    else
+        SceneLoader::removeListener( SceneLoaderListerner::getInstance() );
+}
+
+
+void PythonEnvironment::excludeModuleFromReload( const std::string& moduleName )
+{
+    PyRun_SimpleString( std::string( "try: SofaPython.__SofaPythonEnvironment_modulesExcludedFromReload.append('" + moduleName + "')\nexcept:pass" ).c_str() );
+}
+
+
 
 } // namespace simulation
 

@@ -1,10 +1,31 @@
+/******************************************************************************
+*       SOFA, Simulation Open-Framework Architecture, development version     *
+*                (c) 2006-2017 INRIA, USTL, UJF, CNRS, MGH                    *
+*                                                                             *
+* This program is free software; you can redistribute it and/or modify it     *
+* under the terms of the GNU Lesser General Public License as published by    *
+* the Free Software Foundation; either version 2.1 of the License, or (at     *
+* your option) any later version.                                             *
+*                                                                             *
+* This program is distributed in the hope that it will be useful, but WITHOUT *
+* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or       *
+* FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License *
+* for more details.                                                           *
+*                                                                             *
+* You should have received a copy of the GNU Lesser General Public License    *
+* along with this program. If not, see <http://www.gnu.org/licenses/>.        *
+*******************************************************************************
+* Authors: The SOFA Team and external contributors (see Authors.txt)          *
+*                                                                             *
+* Contact information: contact@sofa-framework.org                             *
+******************************************************************************/
 #include <vector>
 using std::vector;
 
 #include <string>
 using std::string;
 
-#include <gtest/gtest.h>
+#include <SofaTest/Sofa_test.h>
 
 #include<sofa/core/objectmodel/BaseObject.h>
 using sofa::core::objectmodel::BaseObject ;
@@ -38,14 +59,11 @@ int messageInited = initMessage();
 
 namespace sofa {
 
-struct TestLightManager : public ::testing::Test {
-    void checkAttributes();
+struct TestLightManager : public Sofa_test<double> {
 };
 
-void TestLightManager::checkAttributes()
+void checkAttributes()
 {
-    sofa::simulation::setSimulation(new sofa::simulation::graph::DAGSimulation());
-
     std::stringstream scene ;
     scene << "<?xml version='1.0'?>"
              "<Node 	name='Root' gravity='0 -9.81 0' time='0' animate='0' >               \n"

@@ -1,23 +1,20 @@
 /******************************************************************************
 *       SOFA, Simulation Open-Framework Architecture, development version     *
-*                (c) 2006-2016 INRIA, USTL, UJF, CNRS, MGH                    *
+*                (c) 2006-2017 INRIA, USTL, UJF, CNRS, MGH                    *
 *                                                                             *
-* This library is free software; you can redistribute it and/or modify it     *
+* This program is free software; you can redistribute it and/or modify it     *
 * under the terms of the GNU Lesser General Public License as published by    *
 * the Free Software Foundation; either version 2.1 of the License, or (at     *
 * your option) any later version.                                             *
 *                                                                             *
-* This library is distributed in the hope that it will be useful, but WITHOUT *
+* This program is distributed in the hope that it will be useful, but WITHOUT *
 * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or       *
 * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License *
 * for more details.                                                           *
 *                                                                             *
 * You should have received a copy of the GNU Lesser General Public License    *
-* along with this library; if not, write to the Free Software Foundation,     *
-* Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA.          *
+* along with this program. If not, see <http://www.gnu.org/licenses/>.        *
 *******************************************************************************
-*                               SOFA :: Plugins                               *
-*                                                                             *
 * Authors: The SOFA Team and external contributors (see Authors.txt)          *
 *                                                                             *
 * Contact information: contact@sofa-framework.org                             *
@@ -57,8 +54,7 @@ extern "C" PyObject * Base_findData(PyObject *self, PyObject *args )
         }
 
         PyErr_BadArgument();
-
-        Py_RETURN_NONE;
+        return NULL;
     }
 
 
@@ -93,7 +89,7 @@ extern "C" PyObject * Base_findLink(PyObject *self, PyObject *args)
         }
 
         PyErr_BadArgument();
-        Py_RETURN_NONE;
+        return NULL;
     }
 
     return SP_BUILD_PYPTR(Link,BaseLink,link,false);
@@ -108,12 +104,18 @@ extern "C" PyObject* Base_GetAttr(PyObject *o, PyObject *attr_name)
 //    printf("Base_GetAttr type=%s name=%s attrName=%s\n",obj->getClassName().c_str(),obj->getName().c_str(),attrName);
 
     // see if a Data field has this name...
-    BaseData * data = obj->findData(attrName);
-    if (data) return GetDataValuePython(data); // we have our data... let's create the right Python type....
+    if( BaseData * data = obj->findData(attrName) )
+    {
+        // special cases... from factory (e.g DisplayFlags, OptionsGroup)
+        if( PyObject* res = sofa::PythonFactory::toPython(data) )
+            return res;
+        else // the data type is not known by the factory, let's create the right Python type....
+            return GetDataValuePython(data);
+    }
 
     // see if a Link has this name...
-    BaseLink * link = obj->findLink(attrName);
-    if (link) return GetLinkValuePython(link); // we have our link... let's create the right Python type....
+    if( BaseLink * link = obj->findLink(attrName) )
+        return GetLinkValuePython(link); // we have our link... let's create the right Python type....
 
     //        printf("Base_GetAttr ERROR data not found - type=%s name=%s attrName=%s\n",obj->getClassName().c_str(),obj->getName().c_str(),attrName);
     return PyObject_GenericGetAttr(o,attr_name);
@@ -125,20 +127,18 @@ extern "C" int Base_SetAttr(PyObject *o, PyObject *attr_name, PyObject *v)
     Base* obj=down_cast<Base>(((PySPtr<Base>*)o)->object.get());
     char *attrName = PyString_AsString(attr_name);
 
-//    printf("Base_SetAttr name=%s\n",dataName);
-    BaseData * data = obj->findData(attrName);
-    if (data)
+//    printf("Base_SetAttr name=%s\n",attrName);
+    if (BaseData * data = obj->findData(attrName))
     {
-        if (SetDataValuePython(data,v)) return 0;
-        else return -1;
+        // data types in Factory can have a specific setter
+        if( PyObject* pyData = sofa::PythonFactory::toPython(data) )
+            return PyObject_SetAttrString( pyData, "value", v );
+        else // the data type is not known by the factory, let's use the default implementation
+            return SetDataValuePython(data,v);
     }
 
-    BaseLink * link = obj->findLink(attrName);
-    if (link)
-    {
-        if (SetLinkValuePython(link,v)) return 0;
-        else return -1;
-    }
+    if (BaseLink * link = obj->findLink(attrName))
+        return SetLinkValuePython(link,v);
 
     return PyObject_GenericSetAttr(o,attr_name,v);
 }
@@ -174,7 +174,7 @@ extern "C" PyObject * Base_getDataFields(PyObject *self, PyObject * /*args*/)
     if(!component)
     {
         PyErr_BadArgument();
-        Py_RETURN_NONE;
+        return NULL;
     }
 
     const sofa::helper::vector<BaseData*> dataFields = component->getDataFields();

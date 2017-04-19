@@ -1,23 +1,20 @@
 /******************************************************************************
 *       SOFA, Simulation Open-Framework Architecture, development version     *
-*                (c) 2006-2016 INRIA, USTL, UJF, CNRS, MGH                    *
+*                (c) 2006-2017 INRIA, USTL, UJF, CNRS, MGH                    *
 *                                                                             *
-* This library is free software; you can redistribute it and/or modify it     *
+* This program is free software; you can redistribute it and/or modify it     *
 * under the terms of the GNU Lesser General Public License as published by    *
 * the Free Software Foundation; either version 2.1 of the License, or (at     *
 * your option) any later version.                                             *
 *                                                                             *
-* This library is distributed in the hope that it will be useful, but WITHOUT *
+* This program is distributed in the hope that it will be useful, but WITHOUT *
 * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or       *
 * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License *
 * for more details.                                                           *
 *                                                                             *
 * You should have received a copy of the GNU Lesser General Public License    *
-* along with this library; if not, write to the Free Software Foundation,     *
-* Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA.          *
+* along with this program. If not, see <http://www.gnu.org/licenses/>.        *
 *******************************************************************************
-*                               SOFA :: Plugins                               *
-*                                                                             *
 * Authors: The SOFA Team and external contributors (see Authors.txt)          *
 *                                                                             *
 * Contact information: contact@sofa-framework.org                             *
@@ -54,7 +51,7 @@ namespace component
 namespace controller
 {
 
-using sofa::core::objectmodel::HeartBeatEvent ;
+using sofa::core::objectmodel::IdleEvent ;
 
 int PythonMainScriptControllerClass = RegisterObject("A Sofa controller scripted in python, looking for callbacks directly "
                                                      "in the file (not in a class like the more general and powerful "
@@ -112,15 +109,15 @@ void PythonMainScriptController::loadScript()
     BIND_SCRIPT_FUNC_WITH_MESSAGE(onGUIEvent)
     BIND_SCRIPT_FUNC_WITH_MESSAGE(onScriptEvent)
     BIND_SCRIPT_FUNC_WITH_MESSAGE(draw)
-    BIND_SCRIPT_FUNC_WITH_MESSAGE(onHeartBeat)
+    BIND_SCRIPT_FUNC_WITH_MESSAGE(onIdle)
 
     #undef BIND_SCRIPT_FUNC_WITH_MESSAGE
 }
 
-void PythonMainScriptController::script_onHeartBeatEvent(const HeartBeatEvent* event)
+void PythonMainScriptController::script_onIdleEvent(const IdleEvent* event)
 {
     SOFA_UNUSED(event) ;
-    SP_CALL_MODULEFUNC_NOPARAM(m_Func_onHeartBeat)
+    SP_CALL_MODULEFUNC_NOPARAM(m_Func_onIdle)
 }
 
 void PythonMainScriptController::script_onLoaded(sofa::simulation::Node *node)

@@ -12,6 +12,8 @@ set(HEADER_FILES
     compliance/DampingCompliance.h
     compliance/DiagonalCompliance.h
     compliance/DiagonalCompliance.inl
+    compliance/LinearDiagonalCompliance.h
+    compliance/LinearDiagonalCompliance.inl
     compliance/UniformCompliance.h
     compliance/UniformCompliance.inl
     compliance/FullCompliance.h
@@ -39,6 +41,10 @@ set(HEADER_FILES
     forcefield/PotentialEnergy.h
     forcefield/UniformLinearPotentialEnergy.h
     forcefield/CompliantPenaltyForceField.h
+    forcefield/UniformStiffness.h
+    forcefield/UniformStiffness.inl
+    forcefield/DiagonalStiffness.h
+    forcefield/DiagonalStiffness.inl
     mapping/AdditionMapping.h
     mapping/AffineMultiMapping.h
     mapping/AssembledMapping.h
@@ -116,7 +122,6 @@ set(HEADER_FILES
     utils/map.h
     utils/minres.h
     utils/nan.h
-    utils/pair.h
     utils/preconditionedcg.h
     utils/schur.h
     utils/scoped.h
@@ -132,6 +137,7 @@ set(SOURCE_FILES
     assembly/AssemblyVisitor.cpp
     compliance/DampingCompliance.cpp
     compliance/DiagonalCompliance.cpp
+    compliance/LinearDiagonalCompliance.cpp
     compliance/UniformCompliance.cpp
     compliance/FullCompliance.cpp
     constraint/ClosureConstraint.cpp
@@ -154,6 +160,8 @@ set(SOURCE_FILES
     forcefield/PotentialEnergy.cpp
     forcefield/UniformLinearPotentialEnergy.cpp
     forcefield/CompliantPenaltyForceField.cpp
+    forcefield/UniformStiffness.cpp
+    forcefield/DiagonalStiffness.cpp
     initCompliant.cpp
     mapping/AdditionMapping.cpp
     mapping/AffineMultiMapping.cpp
